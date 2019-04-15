@@ -6,13 +6,7 @@ import {
 } from '@ember/canary-features';
 import { assert, deprecate, warn } from '@ember/debug';
 import EmberError from '@ember/error';
-import {
-  getCachedValueFor,
-  getCacheFor,
-  getLastRevisionFor,
-  peekCacheFor,
-  setLastRevisionFor,
-} from './computed_cache';
+import { getCachedValueFor, getCacheFor, peekCacheFor } from './computed_cache';
 import {
   addDependentKeys,
   ComputedDescriptor,
@@ -27,7 +21,6 @@ import expandProperties from './expand_properties';
 import { defineProperty } from './properties';
 import { notifyPropertyChange } from './property_events';
 import { set } from './property_set';
-import { tagForProperty, update } from './tags';
 import { getCurrentTracker, setCurrentTracker } from './tracked';
 
 export type ComputedPropertyGetter = (keyName: string) => any;
@@ -250,7 +243,6 @@ export class ComputedProperty extends ComputedDescriptor {
 
   _getter?: ComputedPropertyGetter = undefined;
   _setter?: ComputedPropertySetter = undefined;
-  _auto?: boolean;
 
   constructor(args: Array<string | ComputedPropertyConfig>) {
     super();
@@ -292,10 +284,6 @@ export class ComputedProperty extends ComputedDescriptor {
 
     if (args.length > 0) {
       this._property(...(args as string[]));
-    }
-
-    if (EMBER_METAL_TRACKED_PROPERTIES) {
-      this._auto = false;
     }
   }
 
@@ -517,46 +505,24 @@ export class ComputedProperty extends ComputedDescriptor {
     }
 
     let cache = getCacheFor(obj);
-    let propertyTag;
 
-    if (EMBER_METAL_TRACKED_PROPERTIES) {
-      propertyTag = tagForProperty(obj, keyName);
-
-      if (cache.has(keyName)) {
-        // special-case for computed with no dependent keys used to
-        // trigger cacheable behavior.
-        if (!this._auto && (!this._dependentKeys || this._dependentKeys.length === 0)) {
-          return cache.get(keyName);
-        }
-
-        let lastRevision = getLastRevisionFor(obj, keyName);
-        if (propertyTag.validate(lastRevision)) {
-          return cache.get(keyName);
-        }
-      }
-    } else {
-      if (cache.has(keyName)) {
-        return cache.get(keyName);
-      }
+    if (cache.has(keyName)) {
+      return cache.get(keyName);
     }
 
     let parent: any;
-    let tracker: any;
 
     if (EMBER_METAL_TRACKED_PROPERTIES) {
       parent = getCurrentTracker();
-      tracker = setCurrentTracker();
+
+      // Create a tracker that absorbs any trackable actions inside the CP
+      setCurrentTracker();
     }
 
     let ret = this._getter!.call(obj, keyName);
 
     if (EMBER_METAL_TRACKED_PROPERTIES) {
       setCurrentTracker(parent!);
-      let tag = tracker!.combine();
-      if (parent) parent.add(tag);
-
-      update(propertyTag as any, tag);
-      setLastRevisionFor(obj, keyName, (propertyTag as any).value());
     }
 
     cache.set(keyName, ret);
@@ -645,11 +611,6 @@ export class ComputedProperty extends ComputedDescriptor {
 
     notifyPropertyChange(obj, keyName, meta);
 
-    if (EMBER_METAL_TRACKED_PROPERTIES) {
-      let propertyTag = tagForProperty(obj, keyName);
-      setLastRevisionFor(obj, keyName, propertyTag.value());
-    }
-
     return ret;
   }
 
@@ -663,15 +624,6 @@ export class ComputedProperty extends ComputedDescriptor {
     }
     super.teardown(obj, keyName, meta);
   }
-
-  auto!: () => ComputedProperty;
-}
-
-if (EMBER_METAL_TRACKED_PROPERTIES) {
-  ComputedProperty.prototype.auto = function(): ComputedProperty {
-    this._auto = true;
-    return this;
-  };
 }
 
 export type ComputedDecorator = Decorator & PropertyDecorator & ComputedDecoratorImpl;
