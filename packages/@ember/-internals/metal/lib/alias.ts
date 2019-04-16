@@ -108,7 +108,7 @@ export class AliasedProperty extends ComputedDescriptor {
       setCurrentTracker();
 
       let altObj = this.altObjPath !== undefined ? get(obj, this.altObjPath) : obj;
-      let ret = get(altObj, this.altKey);
+      ret = get(altObj, this.altKey);
 
       setCurrentTracker(parent);
 

@@ -353,20 +353,20 @@ export class Meta {
   }
 
   writableLazyChainsFor(key: string) {
-    let lazyChains = this._getOrCreateOwnSet('_lazyChains');
+    let lazyChains = this._getOrCreateOwnMap('_lazyChains');
 
-    if (!lazyChains.has(key)) {
-      lazyChains.set(key, []);
+    if (!(key in lazyChains)) {
+      lazyChains[key] = [];
     }
 
-    return lazyChains.get(key);
+    return lazyChains[key];
   }
 
   readableLazyChainsFor(key: string) {
     let lazyChains = this._lazyChains;
 
     if (lazyChains !== undefined) {
-      return lazyChains.get(key);
+      return lazyChains[key];
     }
   }
 
