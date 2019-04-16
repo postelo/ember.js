@@ -36,18 +36,17 @@ function getChainTagsForKey(obj: any, key: string) {
   let current: any = obj;
   let segments = key.split('.');
 
-  let segment = segments.shift()!;
-  chainTags.push(tagForProperty(current, segment));
-
   while (segments.length > 0) {
-    segment = segments.shift()!;
+    let segment = segments.shift()!;
 
     if (segment === '@each') {
       segment = segments.shift()!;
 
+      // Push the tags for each item's property
       let tags = (current as Array<any>).map(item => tagForProperty(item, segment));
 
-      chainTags.push(...tags);
+      // Push the tag for the array length itself
+      chainTags.push(...tags, tagForProperty(current, '[]'));
 
       // There shouldn't be any more segments after an `@each`, so break
       break;
@@ -63,6 +62,13 @@ function getChainTagsForKey(obj: any, key: string) {
       // TODO: Assert that current[segment] isn't an undecorated, non-MANDATORY_SETTER getter
 
       current = current[segment];
+
+      let currentType = typeof current;
+
+      if (current === null || (currentType !== 'object' && currentType !== 'function')) {
+        // we've hit the end of the chain for now, break out
+        break;
+      }
     } else {
       let lastRevision = getLastRevisionFor(current, segment);
 
