@@ -15,6 +15,10 @@ import { descriptorForDecorator } from './descriptor_map';
 import { defineProperty } from './properties';
 import { get } from './property_get';
 import { set } from './property_set';
+import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
+import { finishLazyChains } from './chain-tags';
+import { tagForProperty, update } from './tags';
+import { getCurrentTracker, setCurrentTracker } from './tracked';
 
 const CONSUMED = Object.freeze({});
 
@@ -54,34 +58,75 @@ class AliasDecoratorImpl extends Function {
 
 export class AliasedProperty extends ComputedDescriptor {
   readonly altKey: string;
+  readonly altObjPath?: string;
 
-  constructor(altKey: string) {
+  constructor(path: string) {
     super();
-    this.altKey = altKey;
-    this._dependentKeys = [altKey];
+
+    if (EMBER_METAL_TRACKED_PROPERTIES) {
+      let separatorIndex = path.lastIndexOf('.');
+
+      if (separatorIndex !== -1) {
+        this.altObjPath = path.substr(0, separatorIndex);
+        this.altKey = path.substr(separatorIndex + 1);
+      } else {
+        this.altKey = path;
+      }
+    } else {
+      this._dependentKeys = [path];
+      this.altKey = path;
+    }
   }
 
   setup(obj: object, keyName: string, propertyDesc: PropertyDescriptor, meta: Meta): void {
     assert(`Setting alias '${keyName}' on self`, this.altKey !== keyName);
     super.setup(obj, keyName, propertyDesc, meta);
 
-    if (meta.peekWatching(keyName) > 0) {
+    if (meta.peekWatching(keyName) > 0 && !EMBER_METAL_TRACKED_PROPERTIES) {
       this.consume(obj, keyName, meta);
     }
   }
 
   teardown(obj: object, keyName: string, meta: Meta): void {
-    this.unconsume(obj, keyName, meta);
+    if (!EMBER_METAL_TRACKED_PROPERTIES) {
+      this.unconsume(obj, keyName, meta);
+    }
     super.teardown(obj, keyName, meta);
   }
 
   willWatch(obj: object, keyName: string, meta: Meta): void {
-    this.consume(obj, keyName, meta);
+    if (!EMBER_METAL_TRACKED_PROPERTIES) {
+      this.consume(obj, keyName, meta);
+    }
   }
 
   get(obj: object, keyName: string): any {
-    let ret = get(obj, this.altKey);
-    this.consume(obj, keyName, metaFor(obj));
+    let ret: any;
+
+    if (EMBER_METAL_TRACKED_PROPERTIES) {
+      let parent = getCurrentTracker();
+      setCurrentTracker();
+
+      let altObj = this.altObjPath !== undefined ? get(obj, this.altObjPath) : obj;
+      let ret = get(altObj, this.altKey);
+
+      setCurrentTracker(parent);
+
+      finishLazyChains(obj, keyName, ret);
+
+      let altPropertyTag = tagForProperty(altObj, this.altKey);
+      let propertyTag = tagForProperty(obj, keyName);
+
+      update(propertyTag, altPropertyTag);
+
+      if (parent !== null) {
+        parent.add(propertyTag);
+      }
+    } else {
+      ret = get(obj, this.altKey);
+      this.consume(obj, keyName, metaFor(obj));
+    }
+
     return ret;
   }
 

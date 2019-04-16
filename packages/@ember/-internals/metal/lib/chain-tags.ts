@@ -3,8 +3,9 @@ import { combine, CONSTANT_TAG, Tag, UpdatableTag } from '@glimmer/reference';
 import { getLastRevisionFor, peekCacheFor } from './computed_cache';
 import { descriptorForProperty } from './descriptor_map';
 import { tagForProperty, update } from './tags';
+import { AliasedProperty } from './alias';
 
-export function finishLazyTags(obj: any, key: string, value: any) {
+export function finishLazyChains(obj: any, key: string, value: any) {
   let meta = peekMeta(obj);
   let lazyTags = meta !== null ? meta.readableLazyChainsFor(key) : undefined;
 
@@ -58,11 +59,19 @@ function getChainTagsForKey(obj: any, key: string) {
 
     let descriptor = descriptorForProperty(current, segment);
 
-    if (descriptor !== undefined) {
+    if (descriptor === undefined) {
+      // TODO: Assert that current[segment] isn't an undecorated, non-MANDATORY_SETTER getter
+
+      current = current[segment];
+    } else {
       let lastRevision = getLastRevisionFor(current, segment);
 
       if (propertyTag.validate(lastRevision)) {
-        current = peekCacheFor(current).get(segment);
+        if (descriptor instanceof AliasedProperty) {
+          current = current[segment];
+        } else {
+          current = peekCacheFor(current).get(segment);
+        }
       } else {
         let chainTag = UpdatableTag.create(CONSTANT_TAG);
         metaFor(current)
@@ -71,10 +80,6 @@ function getChainTagsForKey(obj: any, key: string) {
 
         break;
       }
-    } else {
-      // TODO: Assert that current[segment] isn't an undecorated, non-MANDATORY_SETTER getter
-
-      current = current[segment];
     }
   }
 
