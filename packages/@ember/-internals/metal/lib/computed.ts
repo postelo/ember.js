@@ -28,7 +28,7 @@ import { defineProperty } from './properties';
 import { notifyPropertyChange } from './property_events';
 import { set } from './property_set';
 import { getCurrentTracker, setCurrentTracker } from './tracked';
-import { Tag } from '@glimmer/reference';
+import { Tag, combine } from '@glimmer/reference';
 import { tagForProperty, tagFor, update } from './tags';
 import { finishLazyChains, getChainTagsForKeys } from './chain-tags';
 
@@ -252,6 +252,7 @@ export class ComputedProperty extends ComputedDescriptor {
 
   _getter?: ComputedPropertyGetter = undefined;
   _setter?: ComputedPropertySetter = undefined;
+  _auto?: boolean;
 
   constructor(args: Array<string | ComputedPropertyConfig>) {
     super();
@@ -489,24 +490,24 @@ export class ComputedProperty extends ComputedDescriptor {
   */
 
   // invalidate cache when CP key changes
-  // didChange(obj: object, keyName: string): void {
-  //   // _suspended is set via a CP.set to ensure we don't clear
-  //   // the cached value set by the setter
-  //   if (this._volatile || this._suspended === obj) {
-  //     return;
-  //   }
+  didChange(obj: object, keyName: string): void {
+    // _suspended is set via a CP.set to ensure we don't clear
+    // the cached value set by the setter
+    if (this._volatile || this._suspended === obj) {
+      return;
+    }
 
-  //   // don't create objects just to invalidate
-  //   let meta = peekMeta(obj);
-  //   if (meta === null || meta.source !== obj) {
-  //     return;
-  //   }
+    // don't create objects just to invalidate
+    let meta = peekMeta(obj);
+    if (meta === null || meta.source !== obj) {
+      return;
+    }
 
-  //   let cache = peekCacheFor(obj);
-  //   if (cache !== undefined && cache.delete(keyName)) {
-  //     removeDependentKeys(this, obj, keyName, meta);
-  //   }
-  // }
+    let cache = peekCacheFor(obj);
+    if (cache !== undefined && cache.delete(keyName)) {
+      removeDependentKeys(this, obj, keyName, meta);
+    }
+  }
 
   get(obj: object, keyName: string): any {
     if (this._volatile) {
@@ -547,12 +548,26 @@ export class ComputedProperty extends ComputedDescriptor {
     let ret = this._getter!.call(obj, keyName);
 
     if (EMBER_METAL_TRACKED_PROPERTIES) {
+      let tracker = getCurrentTracker();
       setCurrentTracker(parent);
+
+      if (this._auto === true) {
+      }
 
       finishLazyChains(obj, keyName, ret);
 
+      let upstreamTags: Tag[] = [];
+
+      if (this._auto === true) {
+        upstreamTags.push(tracker!.combine());
+      }
+
       if (this._dependentKeys !== undefined) {
-        update(propertyTag!, getChainTagsForKeys(obj, this._dependentKeys));
+        upstreamTags.push(getChainTagsForKeys(obj, this._dependentKeys));
+      }
+
+      if (upstreamTags.length > 0) {
+        update(propertyTag!, combine(upstreamTags));
       }
 
       setLastRevisionFor(obj, keyName, propertyTag!.value());
@@ -560,12 +575,14 @@ export class ComputedProperty extends ComputedDescriptor {
 
     cache.set(keyName, ret);
 
-    // let meta = metaFor(obj);
-    // let chainWatchers = meta.readableChainWatchers();
-    // if (chainWatchers !== undefined) {
-    //   chainWatchers.revalidate(keyName);
-    // }
-    // addDependentKeys(this, obj, keyName, meta);
+    if (!EMBER_METAL_TRACKED_PROPERTIES) {
+      let meta = metaFor(obj);
+      let chainWatchers = meta.readableChainWatchers();
+      if (chainWatchers !== undefined) {
+        chainWatchers.revalidate(keyName);
+      }
+      addDependentKeys(this, obj, keyName, meta);
+    }
 
     return ret;
   }
@@ -583,7 +600,16 @@ export class ComputedProperty extends ComputedDescriptor {
       return this.volatileSet(obj, keyName, value);
     }
 
-    return this.setWithSuspend(obj, keyName, value);
+    if (EMBER_METAL_TRACKED_PROPERTIES) {
+      let ret = this._set(obj, keyName, value);
+
+      let propertyTag = tagForProperty(obj, keyName);
+      setLastRevisionFor(obj, keyName, propertyTag.value());
+
+      return ret;
+    } else {
+      return this.setWithSuspend(obj, keyName, value);
+    }
   }
 
   _throwReadOnlyError(obj: object, keyName: string): never {
@@ -657,6 +683,14 @@ export class ComputedProperty extends ComputedDescriptor {
     }
     super.teardown(obj, keyName, meta);
   }
+
+  auto!: () => void;
+}
+
+if (EMBER_METAL_TRACKED_PROPERTIES) {
+  ComputedProperty.prototype.auto = function() {
+    this._auto = true;
+  };
 }
 
 export type ComputedDecorator = Decorator & PropertyDecorator & ComputedDecoratorImpl;

@@ -7,6 +7,7 @@ import { sendEvent } from './events';
 import ObserverSet from './observer_set';
 import { markObjectAsDirty } from './tags';
 import { assertNotRendered } from './transaction';
+import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 
 /**
  @module ember
@@ -42,11 +43,13 @@ function notifyPropertyChange(obj: object, keyName: string, _meta?: Meta | null)
     return;
   }
 
-  // let possibleDesc = descriptorForProperty(obj, keyName, meta);
+  if (!EMBER_METAL_TRACKED_PROPERTIES) {
+    let possibleDesc = descriptorForProperty(obj, keyName, meta);
 
-  // if (possibleDesc !== undefined && typeof possibleDesc.didChange === 'function') {
-  //   possibleDesc.didChange(obj, keyName);
-  // }
+    if (possibleDesc !== undefined && typeof possibleDesc.didChange === 'function') {
+      possibleDesc.didChange(obj, keyName);
+    }
+  }
 
   if (meta !== null && meta.peekWatching(keyName) > 0) {
     dependentKeysDidChange(obj, keyName, meta);

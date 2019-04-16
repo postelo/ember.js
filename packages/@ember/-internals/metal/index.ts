@@ -31,6 +31,7 @@ export {
 export { defineProperty } from './lib/properties';
 export { isElementDescriptor, nativeDescDecorator } from './lib/decorator';
 export {
+  descriptorForDecorator,
   descriptorForProperty,
   isClassicDecorator,
   setClassicDecorator,
