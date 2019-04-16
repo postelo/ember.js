@@ -42,11 +42,11 @@ function notifyPropertyChange(obj: object, keyName: string, _meta?: Meta | null)
     return;
   }
 
-  let possibleDesc = descriptorForProperty(obj, keyName, meta);
+  // let possibleDesc = descriptorForProperty(obj, keyName, meta);
 
-  if (possibleDesc !== undefined && typeof possibleDesc.didChange === 'function') {
-    possibleDesc.didChange(obj, keyName);
-  }
+  // if (possibleDesc !== undefined && typeof possibleDesc.didChange === 'function') {
+  //   possibleDesc.didChange(obj, keyName);
+  // }
 
   if (meta !== null && meta.peekWatching(keyName) > 0) {
     dependentKeysDidChange(obj, keyName, meta);

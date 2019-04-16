@@ -6,7 +6,13 @@ import {
 } from '@ember/canary-features';
 import { assert, deprecate, warn } from '@ember/debug';
 import EmberError from '@ember/error';
-import { getCachedValueFor, getCacheFor, peekCacheFor } from './computed_cache';
+import {
+  getCachedValueFor,
+  getCacheFor,
+  peekCacheFor,
+  setLastRevisionFor,
+  getLastRevisionFor,
+} from './computed_cache';
 import {
   addDependentKeys,
   ComputedDescriptor,
@@ -22,6 +28,9 @@ import { defineProperty } from './properties';
 import { notifyPropertyChange } from './property_events';
 import { set } from './property_set';
 import { getCurrentTracker, setCurrentTracker } from './tracked';
+import { Tag } from '@glimmer/reference';
+import { tagForProperty, tagFor, update } from './tags';
+import { finishLazyTags, getChainTagsForKeys } from './chain-tags';
 
 export type ComputedPropertyGetter = (keyName: string) => any;
 export type ComputedPropertySetter = (keyName: string, value: any, cachedValue?: any) => any;
@@ -480,24 +489,24 @@ export class ComputedProperty extends ComputedDescriptor {
   */
 
   // invalidate cache when CP key changes
-  didChange(obj: object, keyName: string): void {
-    // _suspended is set via a CP.set to ensure we don't clear
-    // the cached value set by the setter
-    if (this._volatile || this._suspended === obj) {
-      return;
-    }
+  // didChange(obj: object, keyName: string): void {
+  //   // _suspended is set via a CP.set to ensure we don't clear
+  //   // the cached value set by the setter
+  //   if (this._volatile || this._suspended === obj) {
+  //     return;
+  //   }
 
-    // don't create objects just to invalidate
-    let meta = peekMeta(obj);
-    if (meta === null || meta.source !== obj) {
-      return;
-    }
+  //   // don't create objects just to invalidate
+  //   let meta = peekMeta(obj);
+  //   if (meta === null || meta.source !== obj) {
+  //     return;
+  //   }
 
-    let cache = peekCacheFor(obj);
-    if (cache !== undefined && cache.delete(keyName)) {
-      removeDependentKeys(this, obj, keyName, meta);
-    }
-  }
+  //   let cache = peekCacheFor(obj);
+  //   if (cache !== undefined && cache.delete(keyName)) {
+  //     removeDependentKeys(this, obj, keyName, meta);
+  //   }
+  // }
 
   get(obj: object, keyName: string): any {
     if (this._volatile) {
@@ -506,15 +515,31 @@ export class ComputedProperty extends ComputedDescriptor {
 
     let cache = getCacheFor(obj);
 
-    if (cache.has(keyName)) {
-      return cache.get(keyName);
-    }
-
     let parent: any;
+    let propertyTag: Tag;
 
     if (EMBER_METAL_TRACKED_PROPERTIES) {
       parent = getCurrentTracker();
+      propertyTag = tagForProperty(obj, keyName);
 
+      if (parent !== null) {
+        parent.add(propertyTag);
+      }
+
+      if (cache.has(keyName)) {
+        let lastRevision = getLastRevisionFor(obj, keyName);
+
+        if (propertyTag.validate(lastRevision)) {
+          return cache.get(keyName);
+        }
+      }
+    } else {
+      if (cache.has(keyName)) {
+        return cache.get(keyName);
+      }
+    }
+
+    if (EMBER_METAL_TRACKED_PROPERTIES) {
       // Create a tracker that absorbs any trackable actions inside the CP
       setCurrentTracker();
     }
@@ -523,16 +548,24 @@ export class ComputedProperty extends ComputedDescriptor {
 
     if (EMBER_METAL_TRACKED_PROPERTIES) {
       setCurrentTracker(parent!);
+
+      finishLazyTags(obj, keyName, ret);
+
+      if (this._dependentKeys !== undefined) {
+        update(propertyTag!, getChainTagsForKeys(obj, this._dependentKeys));
+      }
+
+      setLastRevisionFor(obj, keyName, propertyTag!.value());
     }
 
     cache.set(keyName, ret);
 
-    let meta = metaFor(obj);
-    let chainWatchers = meta.readableChainWatchers();
-    if (chainWatchers !== undefined) {
-      chainWatchers.revalidate(keyName);
-    }
-    addDependentKeys(this, obj, keyName, meta);
+    // let meta = metaFor(obj);
+    // let chainWatchers = meta.readableChainWatchers();
+    // if (chainWatchers !== undefined) {
+    //   chainWatchers.revalidate(keyName);
+    // }
+    // addDependentKeys(this, obj, keyName, meta);
 
     return ret;
   }

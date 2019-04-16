@@ -93,6 +93,7 @@ export class Meta {
   _tag: Tag | undefined;
   _tags: any | undefined;
   _flags: MetaFlags;
+  _lazyChains: Map<string, Array<[string, Tag]>> | undefined;
   source: object;
   proto: object | undefined;
   _parent: Meta | undefined | null;
@@ -349,6 +350,24 @@ export class Meta {
 
   readableTag() {
     return this._tag;
+  }
+
+  writableLazyChainsFor(key: string) {
+    let lazyChains = this._getOrCreateOwnSet('_lazyChains');
+
+    if (!lazyChains.has(key)) {
+      lazyChains.set(key, []);
+    }
+
+    return lazyChains.get(key);
+  }
+
+  readableLazyChainsFor(key: string) {
+    let lazyChains = this._lazyChains;
+
+    if (lazyChains !== undefined) {
+      return lazyChains.get(key);
+    }
   }
 
   writableChainWatchers(create: (source: object) => any) {
