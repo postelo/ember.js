@@ -16,6 +16,7 @@ import {
   computed,
 } from '@ember/-internals/metal';
 import { setProxy } from '@ember/-internals/utils';
+import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 import { assert } from '@ember/debug';
 
 function contentPropertyDidChange(content, contentKey) {
@@ -71,13 +72,17 @@ export default Mixin.create({
   }),
 
   willWatchProperty(key) {
-    let contentKey = `content.${key}`;
-    addObserver(this, contentKey, null, contentPropertyDidChange);
+    if (!EMBER_METAL_TRACKED_PROPERTIES) {
+      let contentKey = `content.${key}`;
+      addObserver(this, contentKey, null, contentPropertyDidChange);
+    }
   },
 
   didUnwatchProperty(key) {
-    let contentKey = `content.${key}`;
-    removeObserver(this, contentKey, null, contentPropertyDidChange);
+    if (!EMBER_METAL_TRACKED_PROPERTIES) {
+      let contentKey = `content.${key}`;
+      removeObserver(this, contentKey, null, contentPropertyDidChange);
+    }
   },
 
   unknownProperty(key) {

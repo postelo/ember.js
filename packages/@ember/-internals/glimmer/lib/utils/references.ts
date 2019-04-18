@@ -190,8 +190,8 @@ export class RootPropertyReference extends PropertyReference
       this.tag = this.propertyTag;
     }
 
-    if (DEBUG) {
-      // watchKey(parentValue, propertyKey);
+    if (DEBUG && !EMBER_METAL_TRACKED_PROPERTIES) {
+      watchKey(parentValue, propertyKey);
     }
   }
 
@@ -262,8 +262,8 @@ export class NestedPropertyReference extends PropertyReference {
     if ((parentValueType === 'object' && _parentValue !== null) || parentValueType === 'function') {
       let parentValue = _parentValue as object;
 
-      if (DEBUG) {
-        // watchKey(parentValue, propertyKey);
+      if (DEBUG && !EMBER_METAL_TRACKED_PROPERTIES) {
+        watchKey(parentValue, propertyKey);
       }
 
       if (DEBUG) {
