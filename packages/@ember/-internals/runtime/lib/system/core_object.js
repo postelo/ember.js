@@ -12,6 +12,7 @@ import {
   HAS_NATIVE_PROXY,
   isInternalSymbol,
 } from '@ember/-internals/utils';
+import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 import { schedule } from '@ember/runloop';
 import { meta, peekMeta, deleteMeta } from '@ember/-internals/meta';
 import {
@@ -29,6 +30,7 @@ import {
 import ActionHandler from '../mixins/action_handler';
 import { assert } from '@ember/debug';
 import { DEBUG } from '@glimmer/env';
+import { activateObserver } from '../../../metal/lib/observer';
 
 const reopen = Mixin.prototype.reopen;
 
@@ -129,9 +131,22 @@ function initialize(obj, properties) {
   }
   obj.init(properties);
 
-  // re-enable chains
-  m.unsetInitializing();
-  finishChains(m);
+  if (EMBER_METAL_TRACKED_PROPERTIES) {
+    let prototypeMeta = peekMeta(obj.prototype);
+
+    let inheritedObserverEvents = prototypeMeta.observerEvents();
+
+    if (inheritedObserverEvents !== undefined) {
+      for (let i = 0; i < inheritedObserverEvents.length; i++) {
+        activateObserver(obj, inheritedObserverEvents[i]);
+      }
+    }
+  } else {
+    // re-enable chains
+    m.unsetInitializing();
+    finishChains(m);
+  }
+
   sendEvent(obj, 'init', undefined, undefined, undefined, m);
 }
 
@@ -267,7 +282,10 @@ class CoreObject {
 
     // disable chains
     let m = meta(self);
-    m.setInitializing();
+
+    if (!EMBER_METAL_TRACKED_PROPERTIES) {
+      m.setInitializing();
+    }
 
     assert(
       `An EmberObject based class, ${

@@ -49,12 +49,12 @@ function notifyPropertyChange(obj: object, keyName: string, _meta?: Meta | null)
     if (possibleDesc !== undefined && typeof possibleDesc.didChange === 'function') {
       possibleDesc.didChange(obj, keyName);
     }
-  }
 
-  if (meta !== null && meta.peekWatching(keyName) > 0) {
-    dependentKeysDidChange(obj, keyName, meta);
-    chainsDidChange(obj, keyName, meta);
-    notifyObservers(obj, keyName, meta);
+    if (meta !== null && meta.peekWatching(keyName) > 0) {
+      dependentKeysDidChange(obj, keyName, meta);
+      chainsDidChange(obj, keyName, meta);
+      notifyObservers(obj, keyName, meta);
+    }
   }
 
   if (PROPERTY_DID_CHANGE in obj) {

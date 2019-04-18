@@ -722,6 +722,34 @@ export class Meta {
 
     return result;
   }
+
+  observerListeners() {
+    let listeners = this.flattenedListeners();
+    let result;
+
+    if (listeners !== undefined) {
+      for (let index = 0; index < listeners.length; index++) {
+        let listener = listeners[index];
+
+        // REMOVE listeners are placeholders that tell us not to
+        // inherit, so they never match. Only ADD and ONCE can match.
+        if (
+          (listener.kind === ListenerKind.ADD || listener.kind === ListenerKind.ONCE) &&
+          listener.event.match(':change')
+        ) {
+          if (result === undefined) {
+            // we create this array only after we've found a listener that
+            // matches to avoid allocations when no matches are found.
+            result = [] as any[];
+          }
+
+          result.push(listener.target!, listener.method, listener.kind === ListenerKind.ONCE);
+        }
+      }
+    }
+
+    return result;
+  }
 }
 
 export interface Meta {

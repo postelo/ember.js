@@ -1,9 +1,9 @@
 import { meta as metaFor, peekMeta } from '@ember/-internals/meta';
 import { combine, CONSTANT_TAG, Tag, UpdatableTag } from '@glimmer/reference';
+import { AliasedProperty } from './alias';
 import { getLastRevisionFor, peekCacheFor } from './computed_cache';
 import { descriptorForProperty } from './descriptor_map';
 import { tagForProperty, update } from './tags';
-import { AliasedProperty } from './alias';
 
 export function finishLazyChains(obj: any, key: string, value: any) {
   let meta = peekMeta(obj);
@@ -30,7 +30,7 @@ export function getChainTagsForKeys(obj: any, keys: string[]) {
   return combine(chainTags);
 }
 
-function getChainTagsForKey(obj: any, key: string) {
+export function getChainTagsForKey(obj: any, key: string) {
   let chainTags: Tag[] = [];
 
   let current: any = obj;
