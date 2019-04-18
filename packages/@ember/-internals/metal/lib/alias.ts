@@ -1,8 +1,10 @@
 import { Meta, meta as metaFor } from '@ember/-internals/meta';
 import { inspect } from '@ember/-internals/utils';
+import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 import { assert } from '@ember/debug';
 import EmberError from '@ember/error';
-import { getCachedValueFor, getCacheFor } from './computed_cache';
+import { finishLazyChains, getChainTagsForKey } from './chain-tags';
+import { getCachedValueFor, getCacheFor, setLastRevisionFor } from './computed_cache';
 import {
   addDependentKeys,
   ComputedDescriptor,
@@ -15,8 +17,6 @@ import { descriptorForDecorator } from './descriptor_map';
 import { defineProperty } from './properties';
 import { get } from './property_get';
 import { set } from './property_set';
-import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
-import { finishLazyChains } from './chain-tags';
 import { tagForProperty, update } from './tags';
 import { getCurrentTracker, setCurrentTracker } from './tracked';
 
@@ -58,23 +58,13 @@ class AliasDecoratorImpl extends Function {
 
 export class AliasedProperty extends ComputedDescriptor {
   readonly altKey: string;
-  readonly altObjPath?: string;
 
-  constructor(path: string) {
+  constructor(altKey: string) {
     super();
 
-    if (EMBER_METAL_TRACKED_PROPERTIES) {
-      let separatorIndex = path.lastIndexOf('.');
-
-      if (separatorIndex !== -1) {
-        this.altObjPath = path.substr(0, separatorIndex);
-        this.altKey = path.substr(separatorIndex + 1);
-      } else {
-        this.altKey = path;
-      }
-    } else {
-      this._dependentKeys = [path];
-      this.altKey = path;
+    this.altKey = altKey;
+    if (!EMBER_METAL_TRACKED_PROPERTIES) {
+      this._dependentKeys = [altKey];
     }
   }
 
@@ -105,23 +95,22 @@ export class AliasedProperty extends ComputedDescriptor {
 
     if (EMBER_METAL_TRACKED_PROPERTIES) {
       let parent = getCurrentTracker();
-      setCurrentTracker();
-
-      let altObj = this.altObjPath !== undefined ? get(obj, this.altObjPath) : obj;
-      ret = get(altObj, this.altKey);
-
-      setCurrentTracker(parent);
-
-      finishLazyChains(obj, keyName, ret);
-
-      let altPropertyTag = tagForProperty(altObj, this.altKey);
       let propertyTag = tagForProperty(obj, keyName);
-
-      update(propertyTag, altPropertyTag);
 
       if (parent !== null) {
         parent.add(propertyTag);
       }
+
+      setCurrentTracker();
+
+      ret = get(obj, this.altKey);
+
+      let altPropertyTag = getChainTagsForKey(obj, this.altKey);
+      update(propertyTag, altPropertyTag);
+
+      setCurrentTracker(parent);
+      finishLazyChains(obj, keyName, ret);
+      setLastRevisionFor(obj, keyName, propertyTag.value());
     } else {
       ret = get(obj, this.altKey);
       this.consume(obj, keyName, metaFor(obj));

@@ -1,6 +1,5 @@
 import { meta as metaFor, peekMeta } from '@ember/-internals/meta';
 import { combine, CONSTANT_TAG, Tag, UpdatableTag } from '@glimmer/reference';
-import { AliasedProperty } from './alias';
 import { getLastRevisionFor, peekCacheFor } from './computed_cache';
 import { descriptorForProperty } from './descriptor_map';
 import { tagForProperty, update } from './tags';
@@ -10,6 +9,11 @@ export function finishLazyChains(obj: any, key: string, value: any) {
   let lazyTags = meta !== null ? meta.readableLazyChainsFor(key) : undefined;
 
   if (lazyTags === undefined) {
+    return;
+  }
+
+  if (value === null || (typeof value !== 'object' && typeof value !== 'function')) {
+    lazyTags.clear();
     return;
   }
 
@@ -61,24 +65,23 @@ export function getChainTagsForKey(obj: any, key: string) {
     if (descriptor === undefined) {
       // TODO: Assert that current[segment] isn't an undecorated, non-MANDATORY_SETTER getter
 
-      current = current[segment];
-
-      let currentType = typeof current;
-
-      if (current === null || (currentType !== 'object' && currentType !== 'function')) {
-        // we've hit the end of the chain for now, break out
-        break;
+      if (!(segment in current) && typeof current.unknownProperty === 'function') {
+        current = current.unknownProperty(segment);
+      } else {
+        current = current[segment];
       }
     } else {
       let lastRevision = getLastRevisionFor(current, segment);
 
       if (propertyTag.validate(lastRevision)) {
-        if (descriptor instanceof AliasedProperty) {
+        let cache = peekCacheFor(current);
+
+        if (cache === undefined || !cache.has(segment)) {
           current = current[segment];
         } else {
           current = peekCacheFor(current).get(segment);
         }
-      } else {
+      } else if (segments.length > 0) {
         let chainTag = UpdatableTag.create(CONSTANT_TAG);
         metaFor(current)
           .writableLazyChainsFor(key)
@@ -86,6 +89,13 @@ export function getChainTagsForKey(obj: any, key: string) {
 
         break;
       }
+    }
+
+    let currentType = typeof current;
+
+    if (current === null || (currentType !== 'object' && currentType !== 'function')) {
+      // we've hit the end of the chain for now, break out
+      break;
     }
   }
 

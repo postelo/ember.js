@@ -1,6 +1,8 @@
 import { assert } from '@ember/debug';
 import { onErrorTarget } from '@ember/-internals/error-handling';
+import { checkActiveObservers } from '@ember/-internals/metal';
 import Backburner from 'backburner';
+import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 
 let currentRunLoop = null;
 export function getCurrentRunLoop() {
@@ -9,10 +11,18 @@ export function getCurrentRunLoop() {
 
 function onBegin(current) {
   currentRunLoop = current;
+
+  if (EMBER_METAL_TRACKED_PROPERTIES) {
+    checkActiveObservers();
+  }
 }
 
 function onEnd(current, next) {
   currentRunLoop = next;
+
+  if (EMBER_METAL_TRACKED_PROPERTIES) {
+    checkActiveObservers();
+  }
 }
 
 export const _rsvpErrorQueue = `${Math.random()}${Date.now()}`.replace('.', '');

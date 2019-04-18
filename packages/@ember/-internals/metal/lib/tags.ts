@@ -2,6 +2,7 @@ import { Meta, meta as metaFor } from '@ember/-internals/meta';
 import { isProxy } from '@ember/-internals/utils';
 import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 import { backburner } from '@ember/runloop';
+import { DEBUG } from '@glimmer/env';
 import {
   combine,
   CONSTANT_TAG,
@@ -34,6 +35,10 @@ export function tagForProperty(object: any, propertyKey: string | symbol, _meta?
 
   if (EMBER_METAL_TRACKED_PROPERTIES) {
     let pair = combine([makeTag(), UpdatableTag.create(CONSTANT_TAG)]);
+
+    if (DEBUG) {
+      (pair as any)._propertyKey = propertyKey;
+    }
     return (tags[propertyKey] = pair);
   } else {
     return (tags[propertyKey] = makeTag());
@@ -58,6 +63,7 @@ if (EMBER_METAL_TRACKED_PROPERTIES) {
   };
 
   update = (outer, inner) => {
+    (outer.inner! as any).lastChecked = 0;
     (outer.inner! as any).second.inner.update(inner);
   };
 } else {

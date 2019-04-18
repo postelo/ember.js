@@ -20,6 +20,7 @@ import {
   finishChains,
   sendEvent,
   Mixin,
+  activateObserver,
   applyMixin,
   defineProperty,
   descriptorForProperty,
@@ -30,7 +31,6 @@ import {
 import ActionHandler from '../mixins/action_handler';
 import { assert } from '@ember/debug';
 import { DEBUG } from '@glimmer/env';
-import { activateObserver } from '../../../metal/lib/observer';
 
 const reopen = Mixin.prototype.reopen;
 
@@ -131,10 +131,10 @@ function initialize(obj, properties) {
   }
   obj.init(properties);
 
-  if (EMBER_METAL_TRACKED_PROPERTIES) {
-    let prototypeMeta = peekMeta(obj.prototype);
+  m.unsetInitializing();
 
-    let inheritedObserverEvents = prototypeMeta.observerEvents();
+  if (EMBER_METAL_TRACKED_PROPERTIES) {
+    let inheritedObserverEvents = m.parent.observerEvents();
 
     if (inheritedObserverEvents !== undefined) {
       for (let i = 0; i < inheritedObserverEvents.length; i++) {
@@ -143,7 +143,6 @@ function initialize(obj, properties) {
     }
   } else {
     // re-enable chains
-    m.unsetInitializing();
     finishChains(m);
   }
 
@@ -283,9 +282,7 @@ class CoreObject {
     // disable chains
     let m = meta(self);
 
-    if (!EMBER_METAL_TRACKED_PROPERTIES) {
-      m.setInitializing();
-    }
+    m.setInitializing();
 
     assert(
       `An EmberObject based class, ${

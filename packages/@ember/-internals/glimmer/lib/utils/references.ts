@@ -191,7 +191,7 @@ export class RootPropertyReference extends PropertyReference
     }
 
     if (DEBUG) {
-      watchKey(parentValue, propertyKey);
+      // watchKey(parentValue, propertyKey);
     }
   }
 
@@ -263,7 +263,7 @@ export class NestedPropertyReference extends PropertyReference {
       let parentValue = _parentValue as object;
 
       if (DEBUG) {
-        watchKey(parentValue, propertyKey);
+        // watchKey(parentValue, propertyKey);
       }
 
       if (DEBUG) {

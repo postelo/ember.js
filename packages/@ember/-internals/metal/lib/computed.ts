@@ -549,7 +549,6 @@ export class ComputedProperty extends ComputedDescriptor {
 
     if (EMBER_METAL_TRACKED_PROPERTIES) {
       let tracker = getCurrentTracker();
-      setCurrentTracker(parent);
 
       if (this._auto === true) {
       }
@@ -571,6 +570,8 @@ export class ComputedProperty extends ComputedDescriptor {
       }
 
       setLastRevisionFor(obj, keyName, propertyTag!.value());
+
+      setCurrentTracker(parent);
     }
 
     cache.set(keyName, ret);
@@ -662,7 +663,7 @@ export class ComputedProperty extends ComputedDescriptor {
     }
 
     let meta = metaFor(obj);
-    if (!hadCachedValue) {
+    if (!EMBER_METAL_TRACKED_PROPERTIES && !hadCachedValue) {
       addDependentKeys(this, obj, keyName, meta);
     }
 

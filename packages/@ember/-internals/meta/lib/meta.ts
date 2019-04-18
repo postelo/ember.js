@@ -723,7 +723,7 @@ export class Meta {
     return result;
   }
 
-  observerListeners() {
+  observerEvents() {
     let listeners = this.flattenedListeners();
     let result;
 
@@ -743,7 +743,7 @@ export class Meta {
             result = [] as any[];
           }
 
-          result.push(listener.target!, listener.method, listener.kind === ListenerKind.ONCE);
+          result.push(listener.event);
         }
       }
     }

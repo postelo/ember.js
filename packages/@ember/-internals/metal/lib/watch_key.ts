@@ -33,9 +33,9 @@ export function watchKey(obj: object, keyName: string, _meta?: Meta): void {
       possibleDesc.willWatch(obj, keyName, meta);
     }
 
-    if (typeof (obj as MaybeHasWillWatchProperty).willWatchProperty === 'function') {
-      (obj as MaybeHasWillWatchProperty).willWatchProperty!(keyName);
-    }
+    // if (typeof (obj as MaybeHasWillWatchProperty).willWatchProperty === 'function') {
+    //   (obj as MaybeHasWillWatchProperty).willWatchProperty!(keyName);
+    // }
 
     if (DEBUG) {
       // NOTE: this is dropped for prod + minified builds
