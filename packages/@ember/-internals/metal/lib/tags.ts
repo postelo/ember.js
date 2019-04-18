@@ -1,5 +1,5 @@
 import { Meta, meta as metaFor } from '@ember/-internals/meta';
-import { isProxy } from '@ember/-internals/utils';
+import { isProxy, symbol } from '@ember/-internals/utils';
 import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 import { backburner } from '@ember/runloop';
 import { DEBUG } from '@glimmer/env';
@@ -12,6 +12,8 @@ import {
   UpdatableTag,
 } from '@glimmer/reference';
 
+export const UNKNOWN_PROPERTY_TAG = symbol('UNKNOWN_PROPERTY_TAG');
+
 function makeTag(): TagWrapper<DirtyableTag> {
   return DirtyableTag.create();
 }
@@ -23,7 +25,11 @@ export function tagForProperty(object: any, propertyKey: string | symbol, _meta?
   }
   let meta = _meta === undefined ? metaFor(object) : _meta;
 
-  if (isProxy(object)) {
+  if (EMBER_METAL_TRACKED_PROPERTIES) {
+    if (!(propertyKey in object) && typeof object[UNKNOWN_PROPERTY_TAG] === 'function') {
+      return object[UNKNOWN_PROPERTY_TAG](propertyKey);
+    }
+  } else if (isProxy(object)) {
     return tagFor(object, meta);
   }
 

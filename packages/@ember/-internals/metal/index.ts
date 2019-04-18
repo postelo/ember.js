@@ -38,6 +38,7 @@ export {
 } from './lib/descriptor_map';
 export { watchKey, unwatchKey } from './lib/watch_key';
 export { ChainNode, finishChains, removeChainWatcher } from './lib/chains';
+export { getChainTagsForKey } from './lib/chain-tags';
 export { watchPath, unwatchPath } from './lib/watch_path';
 export { isWatching, unwatch, watch, watcherCount } from './lib/watching';
 export { default as libraries, Libraries } from './lib/libraries';
@@ -53,7 +54,7 @@ export {
 } from './lib/observer';
 export { Mixin, aliasMethod, mixin, observer, applyMixin } from './lib/mixin';
 export { default as inject, DEBUG_INJECTION_FUNCTIONS } from './lib/injected_property';
-export { tagForProperty, tagFor, markObjectAsDirty } from './lib/tags';
+export { tagForProperty, tagFor, markObjectAsDirty, UNKNOWN_PROPERTY_TAG } from './lib/tags';
 export { default as runInTransaction, didRender, assertNotRendered } from './lib/transaction';
 export { Tracker, tracked, getCurrentTracker, setCurrentTracker } from './lib/tracked';
 

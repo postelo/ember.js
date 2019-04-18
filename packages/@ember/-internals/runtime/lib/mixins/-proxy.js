@@ -14,6 +14,8 @@ import {
   Mixin,
   tagFor,
   computed,
+  UNKNOWN_PROPERTY_TAG,
+  getChainTagsForKey,
 } from '@ember/-internals/metal';
 import { setProxy } from '@ember/-internals/utils';
 import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
@@ -83,6 +85,10 @@ export default Mixin.create({
       let contentKey = `content.${key}`;
       removeObserver(this, contentKey, null, contentPropertyDidChange);
     }
+  },
+
+  [UNKNOWN_PROPERTY_TAG](key) {
+    return getChainTagsForKey(this, `content.${key}`);
   },
 
   unknownProperty(key) {
