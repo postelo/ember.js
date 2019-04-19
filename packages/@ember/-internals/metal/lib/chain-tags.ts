@@ -2,7 +2,7 @@ import { meta as metaFor, peekMeta } from '@ember/-internals/meta';
 import { combine, CONSTANT_TAG, Tag, UpdatableTag } from '@glimmer/reference';
 import { getLastRevisionFor, peekCacheFor } from './computed_cache';
 import { descriptorForProperty } from './descriptor_map';
-import { tagForProperty, update } from './tags';
+import { tagForProperty } from './tags';
 
 export function finishLazyChains(obj: any, key: string, value: any) {
   let meta = peekMeta(obj);
@@ -20,7 +20,7 @@ export function finishLazyChains(obj: any, key: string, value: any) {
   while (lazyTags.length > 0) {
     let [path, tag] = lazyTags.pop()!;
 
-    update(tag, getChainTagsForKey(value, path));
+    tag.inner.update(getChainTagsForKey(value, path));
   }
 }
 
@@ -82,10 +82,13 @@ export function getChainTagsForKey(obj: any, key: string) {
           current = peekCacheFor(current).get(segment);
         }
       } else if (segments.length > 0) {
-        let chainTag = UpdatableTag.create(CONSTANT_TAG);
+        let placeholderTag = UpdatableTag.create(CONSTANT_TAG);
+
         metaFor(current)
-          .writableLazyChainsFor(key)
-          .push([segments.join('.'), chainTag]);
+          .writableLazyChainsFor(segment)
+          .push([segments.join('.'), placeholderTag]);
+
+        chainTags.push(placeholderTag);
 
         break;
       }

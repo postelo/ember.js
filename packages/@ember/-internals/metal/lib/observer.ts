@@ -77,7 +77,7 @@ export function removeObserver(
   removeListener(obj, eventName, target, method);
 }
 
-function getOrCreateActiveObserversFor(target) {
+function getOrCreateActiveObserversFor(target: object) {
   if (!ACTIVE_OBSERVERS.has(target)) {
     ACTIVE_OBSERVERS.set(target, new Map());
   }
@@ -104,14 +104,16 @@ export function activateObserver(target: object, eventName: string) {
 }
 
 export function deactivateObserver(target: object, eventName: string) {
-  let activeObservers = getOrCreateActiveObserversFor(target);
+  let activeObservers = ACTIVE_OBSERVERS.get(target);
 
-  let observer = activeObservers.get(eventName)!;
+  if (activeObservers !== undefined) {
+    let observer = activeObservers.get(eventName)!;
 
-  observer.count--;
+    observer.count--;
 
-  if (observer.count === 0) {
-    activeObservers.delete(eventName);
+    if (observer.count === 0) {
+      activeObservers.delete(eventName);
+    }
   }
 }
 

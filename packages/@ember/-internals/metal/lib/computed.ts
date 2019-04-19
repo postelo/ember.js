@@ -6,12 +6,14 @@ import {
 } from '@ember/canary-features';
 import { assert, deprecate, warn } from '@ember/debug';
 import EmberError from '@ember/error';
+import { combine, Tag } from '@glimmer/reference';
+import { finishLazyChains, getChainTagsForKeys } from './chain-tags';
 import {
   getCachedValueFor,
   getCacheFor,
+  getLastRevisionFor,
   peekCacheFor,
   setLastRevisionFor,
-  getLastRevisionFor,
 } from './computed_cache';
 import {
   addDependentKeys,
@@ -27,10 +29,8 @@ import expandProperties from './expand_properties';
 import { defineProperty } from './properties';
 import { notifyPropertyChange } from './property_events';
 import { set } from './property_set';
+import { tagForProperty, update } from './tags';
 import { getCurrentTracker, setCurrentTracker } from './tracked';
-import { Tag, combine } from '@glimmer/reference';
-import { tagForProperty, tagFor, update } from './tags';
-import { finishLazyChains, getChainTagsForKeys } from './chain-tags';
 
 export type ComputedPropertyGetter = (keyName: string) => any;
 export type ComputedPropertySetter = (keyName: string, value: any, cachedValue?: any) => any;
@@ -549,9 +549,6 @@ export class ComputedProperty extends ComputedDescriptor {
 
     if (EMBER_METAL_TRACKED_PROPERTIES) {
       let tracker = getCurrentTracker();
-
-      if (this._auto === true) {
-      }
 
       finishLazyChains(obj, keyName, ret);
 

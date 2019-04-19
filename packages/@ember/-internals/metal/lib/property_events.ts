@@ -1,5 +1,6 @@
 import { Meta, peekMeta } from '@ember/-internals/meta';
 import { symbol } from '@ember/-internals/utils';
+import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 import { DEBUG } from '@glimmer/env';
 import changeEvent from './change_event';
 import { descriptorForProperty } from './descriptor_map';
@@ -7,7 +8,6 @@ import { sendEvent } from './events';
 import ObserverSet from './observer_set';
 import { markObjectAsDirty } from './tags';
 import { assertNotRendered } from './transaction';
-import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 
 /**
  @module ember
